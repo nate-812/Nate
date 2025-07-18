@@ -15,7 +15,9 @@ import CalendarScreen from './screens/CalendarScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import LoginScreen from './screens/LoginScreen';
 import ProfileScreen from './screens/ProfileScreen';
-import ThingsToDoScreen from './screens/ThingsToDoScreen'; // 1. 导入我们即将创建的新页面
+import ThingsToDoMenuScreen from './screens/ThingsToDoMenuScreen';
+import ThingsToDoScreen from './screens/ThingsToDoScreen';
+import TimesToDoScreen from './screens/TimesToDoScreen';
 
 const AppStack = createStackNavigator();
 
@@ -27,8 +29,9 @@ function AppNavigator({ onLogout, userId }) {
       <AppStack.Screen name="Profile" component={ProfileScreen} options={{ title: '个人资料' }} initialParams={{ userId }}/>
       <AppStack.Screen name="Chat" component={ChatScreen} options={{ title: '悄悄话' }} initialParams={{ userId }}/>
       <AppStack.Screen name="Calendar" component={CalendarScreen} options={{ title: '纪念日' }} initialParams={{ userId }}/>
-      {/* 2. 用新页面替换掉旧的，并更新标题 */}
-      <AppStack.Screen name="ThingsToDo" component={ThingsToDoScreen} options={{ title: '我们的约定' }} initialParams={{ userId }}/>
+      <AppStack.Screen name="ThingsToDoMenu" component={ThingsToDoMenuScreen} options={{ title: '我们的约定' }} initialParams={{ userId }}/>
+      <AppStack.Screen name="ThingsToDo" component={ThingsToDoScreen} options={{ title: '100件事' }} initialParams={{ userId }}/>
+      <AppStack.Screen name="TimesToDo" component={TimesToDoScreen} options={{ title: '100次' }} initialParams={{ userId }}/>
       <AppStack.Screen name="Settings" options={{ title: '设置' }}>
         {(props) => <SettingsScreen {...props} onLogout={onLogout} />}
       </AppStack.Screen>

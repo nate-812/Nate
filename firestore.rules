@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 帮助函数: 检查当前登录用户的UID，是否和指定用户文档里储存的UID匹配。
+    // 这是我们整个安保系统的核心。
+    function isOwner(userId) {
+      return request.auth.uid == get(/databases/$(database)/documents/users/$(userId)).data.firebase_uid;
+    }
+
+    // 纪念日: 只有812或917本人可以读写。
+    match /anniversaries/{docId} {
+      allow read, write: if request.auth.uid != null && (isOwner('812') || isOwner('917'));
+    }
+
+    // 聊天记录: 只有812或917本人可以读写。
+    match /chats/{chatId} {
+        allow read, write: if request.auth.uid != null && chatId == '812_917' && (isOwner('812') || isOwner('917'));
+    }
+
+    // 我们的约定 - 100件事: 只有812或917本人可以读写
+    match /thingsToDo/{docId} {
+      allow read, write: if request.auth.uid != null && docId == '812_917' && (isOwner('812') || isOwner('917'));
+    }
+
+    // 我们的约定 - 100次: 只有812或917本人可以读写
+    match /timesToDo/{docId} {
+      allow read, write: if request.auth.uid != null && docId == '812_917' && (isOwner('812') || isOwner('917'));
+    }
+
+    // 用户资料:
+    match /users/{userId} {
+      // 任何登录用户都可以读取，以便App获取伴侣信息。
+      allow read: if request.auth.uid != null;
+      // 只允许本人修改自己的资料，或者伴侣修改自己的"喊话"。
+      allow update: if (isOwner(userId)) ||
+                     (request.writeFields.hasOnly(['shoutout']) &&
+                       ((userId == '812' && isOwner('917')) || (userId == '917' && isOwner('812'))));
+      // 不允许通过App创建或删除用户。
+      allow create, delete: if false;
+    }
+  }
+}
