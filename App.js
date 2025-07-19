@@ -1,13 +1,13 @@
 import 'react-native-gesture-handler';
+
 import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth, db } from './firebaseConfig';
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, updateDoc } from "firebase/firestore";
-
+import AuthService from './services/AuthService';
+import DatabaseService from './services/DatabaseService';
+import { createUsers } from './utils/InitUsers';
 
 import HomeScreen from './screens/HomeScreen';
 import ChatScreen from './screens/ChatScreen';
@@ -43,104 +43,92 @@ function AppNavigator({ onLogout, userId }) {
 
 
 export default function App() {
-    const [user, setUser] = useState(null); // This will hold the entire Firebase user object
-    const [userId, setUserId] = useState(null); // This holds just the ID '812' or '917'
-    const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (authenticatedUser) => {
-            if (authenticatedUser) {
-                // If a user is authenticated, we trust AsyncStorage to tell us WHO they are.
-                const storedUserId = await AsyncStorage.getItem('userToken');
-                setUser(authenticatedUser);
-                setUserId(storedUserId);
-            } else {
-                // No user is signed in.
-                setUser(null);
-                setUserId(null);
-            }
-            setIsLoading(false);
-        });
+  useEffect(() => {
+    // 创建用户（第一次运行后可以注释掉）
+    createUsers();
 
-        return unsubscribe; // Unsubscribe on unmount
-    }, []);
-
-    const handleLogin = async (code, secretCode) => {
-        if (!code || !secretCode || (code !== '812' && code !== '917')) {
-            alert('请输入正确的专属编号和密语哦！');
-            return;
+    const unsubscribe = AuthService.onAuthStateChanged((user) => {
+      setUser(user);
+      if (user) {
+        const email = user.email || '';
+        const userIdMatch = email.match(/user(\d+)@/);
+        if (userIdMatch) {
+          setUserId(userIdMatch[1]);
         }
+      } else {
+        setUserId(null);
+      }
+      setIsLoading(false);
+    });
 
-        if (secretCode !== '511511') {
-            alert('情侣密语不正确！');
-            return;
-        }
+    return unsubscribe;
+  }, []);
 
-        const email = `user${code}@our-nest.com`;
-        const password = secretCode;
-
-        // Set loading state to give user feedback
-        setIsLoading(true);
-
-        try {
-            // --- The critical change is here ---
-            // 1. First, set the user token. This is our "intent".
-            await AsyncStorage.setItem('userToken', code);
-
-            // 2. Then, attempt to sign in.
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
-            // 3. If successful, update the state directly for a fast UI response.
-            // The onAuthStateChanged listener will also fire and correctly set the state,
-            // but this makes the login feel instantaneous.
-            setUser(userCredential.user);
-            setUserId(code);
-
-        } catch (error) {
-            console.error("Login Failed", error);
-            alert('登录失败，请检查你的编号和密语。');
-            // 4. If login fails, clear the token we tried to set.
-            await AsyncStorage.removeItem('userToken');
-        } finally {
-            // Whether it succeeds or fails, we're done loading.
-            setIsLoading(false);
-        }
-    };
-
-    const handleLogout = async () => {
-        try {
-            await signOut(auth);
-            // Clear local storage
-            await AsyncStorage.removeItem('userToken');
-            // onAuthStateChanged will handle setting user and userId to null
-        } catch (error) {
-            console.error('Sign Out Error', error);
-        }
-    };
-
-    if (isLoading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" />
-            </View>
-        );
+  const handleLogin = async (code, secretCode) => {
+    if (!code || !secretCode || (code !== '812' && code !== '917')) {
+      alert('请输入正确的专属编号和密语哦！');
+      return;
     }
 
+    if (secretCode !== '511511') {
+      alert('情侣密语不正确！');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await AsyncStorage.setItem('userToken', code);
+      const userCredential = await AuthService.signIn(code, secretCode);
+      setUser(userCredential.user);
+      setUserId(code);
+    } catch (error) {
+      console.error('Login error:', error);
+      await AsyncStorage.removeItem('userToken');
+      alert('登录失败：' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await AuthService.signOut();
+      await AsyncStorage.removeItem('userToken');
+      setUser(null);
+      setUserId(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  if (isLoading) {
     return (
-        <NavigationContainer>
-            {user && userId ? (
-                <AppNavigator onLogout={handleLogout} userId={userId} />
-            ) : (
-                <LoginScreen onLogin={handleLogin} />
-            )}
-        </NavigationContainer>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
     );
+  }
+
+  return (
+    <NavigationContainer>
+      {user && userId ? (
+        <AppNavigator onLogout={handleLogout} userId={userId} />
+      ) : (
+        <LoginScreen onLogin={handleLogin} />
+      )}
+    </NavigationContainer>
+  );
 }
 
 const styles = StyleSheet.create({
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    }
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
 }); 

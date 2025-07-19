@@ -5,8 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import solarLunar from 'solarlunar';
 
-import { db } from '../firebaseConfig';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, updateDoc } from 'firebase/firestore';
+import DatabaseService from '../services/DatabaseService';
 import { colors, globalStyles } from '../styles/globalStyles';
 
 const AnniversaryItem = ({ item, onDelete, onEdit }) => {
@@ -157,26 +156,38 @@ export default function CalendarScreen() {
   const [editIsYearly, setEditIsYearly] = useState(false);
   const [editIsLunar, setEditIsLunar] = useState(false);
 
-  // Listen for real-time updates from Firestore
+  // Listen for real-time updates
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "anniversaries"), (querySnapshot) => {
-      const anniversariesData = [];
-      querySnapshot.forEach((doc) => {
-        anniversariesData.push({ ...doc.data(), id: doc.id });
-      });
-      
-      // 手动排序：有 createdAt 的按时间排序，没有的放在前面
-      anniversariesData.sort((a, b) => {
-        if (!a.createdAt && !b.createdAt) return 0;
-        if (!a.createdAt) return -1; // 旧数据放前面
-        if (!b.createdAt) return 1;
-        return a.createdAt.toDate().getTime() - b.createdAt.toDate().getTime();
-      });
-      
-      setAnniversaries(anniversariesData);
-    });
+    const loadAnniversaries = async () => {
+      try {
+        const docRef = DatabaseService.doc("anniversaries", "812_917");
+        const doc = await DatabaseService.getDoc(docRef);
+        
+        if (doc && doc.data && doc.data.items) {
+          const anniversariesData = doc.data.items.map((item, index) => ({
+            ...item,
+            id: item.id || `anniversary_${index}`
+          }));
+          
+          // 手动排序：有 createdAt 的按时间排序，没有的放在前面
+          anniversariesData.sort((a, b) => {
+            if (!a.createdAt && !b.createdAt) return 0;
+            if (!a.createdAt) return -1; // 旧数据放前面
+            if (!b.createdAt) return 1;
+            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          });
+          
+          setAnniversaries(anniversariesData);
+        } else {
+          setAnniversaries([]);
+        }
+      } catch (error) {
+        console.error("加载纪念日失败:", error);
+        setAnniversaries([]);
+      }
+    };
 
-    return () => unsubscribe(); // Cleanup on unmount
+    loadAnniversaries();
   }, []);
 
   // 验证日期格式的函数
@@ -219,14 +230,22 @@ export default function CalendarScreen() {
     }
 
     try {
-      await addDoc(collection(db, 'anniversaries'), {
+      const newAnniversary = {
+        id: `anniversary_${Date.now()}`,
         title: newName.trim(),
         date: newDate.trim(),
         note: newNote.trim(),
         isYearly: newIsYearly,
         isLunar: newIsLunar,
-        createdAt: new Date(),
-      });
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedAnniversaries = [...anniversaries, newAnniversary];
+      
+      const docRef = DatabaseService.doc("anniversaries", "812_917");
+      await DatabaseService.setDoc(docRef, { items: updatedAnniversaries });
+      
+      setAnniversaries(updatedAnniversaries);
       setNewName('');
       setNewDate('');
       setNewNote('');
@@ -234,16 +253,21 @@ export default function CalendarScreen() {
       setNewIsLunar(false);
       setModalVisible(false);
     } catch (error) {
-      console.error("Error adding document: ", error);
+      console.error("Error adding anniversary: ", error);
       alert('添加失败，请稍后再试');
     }
   };
 
   const handleDeleteAnniversary = async (id) => {
     try {
-      await deleteDoc(doc(db, 'anniversaries', id));
+      const updatedAnniversaries = anniversaries.filter(item => item.id !== id);
+      
+      const docRef = DatabaseService.doc("anniversaries", "812_917");
+      await DatabaseService.setDoc(docRef, { items: updatedAnniversaries });
+      
+      setAnniversaries(updatedAnniversaries);
     } catch (error) {
-      console.error("Error removing document: ", error);
+      console.error("Error removing anniversary: ", error);
       alert('删除失败，请稍后再试');
     }
   };
@@ -277,18 +301,32 @@ export default function CalendarScreen() {
     }
 
     try {
-      await updateDoc(doc(db, 'anniversaries', editingItem.id), {
-        title: editName.trim(),
-        date: editDate.trim(),
-        note: editNote.trim(),
-      });
+      const updatedAnniversaries = anniversaries.map(item => 
+        item.id === editingItem.id 
+          ? {
+              ...item,
+              title: editName.trim(),
+              date: editDate.trim(),
+              note: editNote.trim(),
+              isYearly: editIsYearly,
+              isLunar: editIsLunar,
+            }
+          : item
+      );
+      
+      const docRef = DatabaseService.doc("anniversaries", "812_917");
+      await DatabaseService.setDoc(docRef, { items: updatedAnniversaries });
+      
+      setAnniversaries(updatedAnniversaries);
       setEditModalVisible(false);
       setEditingItem(null);
       setEditName('');
       setEditDate('');
       setEditNote('');
+      setEditIsYearly(false);
+      setEditIsLunar(false);
     } catch (error) {
-      console.error("Error updating document: ", error);
+      console.error("Error updating anniversary: ", error);
       alert('更新失败，请稍后再试');
     }
   };

@@ -10,6 +10,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@cloudbase/js-sdk": "^2.18.3",
     "@expo/vector-icons": "^14.0.0",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/blur": "^4.4.1",
@@ -26,19 +27,16 @@
     "expo-notifications": "~0.31.4",
     "expo-sqlite": "~15.2.14",
     "expo-status-bar": "~2.2.3",
-    "firebase": "^11.10.0",
     "react": "19.0.0",
     "react-native": "0.79.5",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-paper": "^5.12.3",
     "react-native-safe-area-context": "5.4.0",
-    "react-native-screens": "~4.11.1",
-    "react-native-vector-icons": "^10.0.3",
     "solarlunar": "^2.0.7"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@types/react": "~18.2.45",
+    "@types/react": "~19.0.0",
     "typescript": "~5.3.3"
   },
   "private": true

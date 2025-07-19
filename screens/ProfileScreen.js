@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { db, auth } from '../firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import DatabaseService from '../services/DatabaseService';
+import AuthService from '../services/AuthService';
 
 const calculateAge = (birthday) => {
     if (!birthday) return null;
@@ -27,11 +27,11 @@ export default function ProfileScreen({ route, navigation }) {
         const fetchUserData = async () => {
             if (userId) {
                 try {
-                    const docRef = doc(db, "users", userId);
-                    const docSnap = await getDoc(docRef);
+                    const docRef = DatabaseService.doc("users", userId);
+                    const docSnap = await DatabaseService.getDoc(docRef);
 
-                    if (docSnap.exists()) {
-                        setUserData(docSnap.data());
+                    if (docSnap && docSnap.data) {
+                        setUserData(docSnap.data);
                     } else {
                         console.log("No such document!");
                     }
@@ -57,7 +57,7 @@ export default function ProfileScreen({ route, navigation }) {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await signOut(auth);
+                            await AuthService.signOut();
                             await AsyncStorage.removeItem('userToken');
                         } catch (error) {
                             console.error('退出登录失败:', error);

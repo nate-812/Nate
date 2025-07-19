@@ -2,12 +2,10 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, FlatList } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
-// 1. 我们重新请回 SafeAreaView
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { db } from '../firebaseConfig';
-import { doc, getDoc, updateDoc, onSnapshot, setDoc, arrayUnion, Timestamp } from "firebase/firestore";
+import DatabaseService from '../services/DatabaseService';
 import { Ionicons } from '@expo/vector-icons';
-import { formatMessageTimestamp } from '../utils/dateFormatter'; // 1. 导入我们的新工具
+import { formatMessageTimestamp } from '../utils/dateFormatter';
 
 // 3. 设计时间戳卡片UI组件
 const TimestampCard = ({ timestamp }) => (
@@ -66,18 +64,25 @@ export default function ChatScreen({ route }) {
         const messageData = {
             _id: `${Date.now()}-${Math.random()}`,
             text: newMessageText,
-            createdAt: Timestamp.fromDate(new Date()),
+            createdAt: new Date(), // 直接使用Date对象
             user: {
                 _id: userId,
             },
             isRead: false, // 1. 为每条新消息增加 isRead 字段
         };
     
-        const chatDocRef = doc(db, 'chats', chatId);
         try {
-            await setDoc(chatDocRef, { 
-                messages: arrayUnion(messageData)
-            }, { merge: true });
+            const chatDocRef = DatabaseService.doc('chats', chatId);
+            const chatDoc = await DatabaseService.getDoc(chatDocRef);
+            
+            let existingMessages = [];
+            if (chatDoc && chatDoc.data && chatDoc.data.messages) {
+                existingMessages = chatDoc.data.messages;
+            }
+            
+            const updatedMessages = [...existingMessages, messageData];
+            await DatabaseService.setDoc(chatDocRef, { messages: updatedMessages });
+            
             // Clear the input AFTER the message is sent
             setNewMessageText('');
         } catch (error) {
@@ -100,11 +105,12 @@ export default function ChatScreen({ route }) {
             return;
         }
         
-        const chatDocRef = doc(db, 'chats', chatId);
         try {
-            const chatDocSnap = await getDoc(chatDocRef);
-            if (chatDocSnap.exists()) {
-                const existingMessages = chatDocSnap.data().messages || [];
+            const chatDocRef = DatabaseService.doc('chats', chatId);
+            const chatDocSnap = await DatabaseService.getDoc(chatDocRef);
+            
+            if (chatDocSnap && chatDocSnap.data && chatDocSnap.data.messages) {
+                const existingMessages = chatDocSnap.data.messages;
                 
                 // 创建一个消息ID到索引的映射，以提高效率
                 const messageIdToIndex = {};
@@ -127,7 +133,7 @@ export default function ChatScreen({ route }) {
 
                 // 如果有任何更新，则写回数据库
                 if (updatesMade) {
-                    await updateDoc(chatDocRef, { messages: existingMessages });
+                    await DatabaseService.updateDoc(chatDocRef, { messages: existingMessages });
                 }
             }
         } catch (error) {
@@ -184,10 +190,10 @@ export default function ChatScreen({ route }) {
                     setChatId(newChatId);
 
                     try {
-                        const partnerDocRef = doc(db, "users", newPartnerId);
-                        const partnerDocSnap = await getDoc(partnerDocRef);
-                        if (partnerDocSnap.exists()) {
-                            const data = partnerDocSnap.data();
+                        const partnerDocRef = DatabaseService.doc("users", newPartnerId);
+                        const partnerDocSnap = await DatabaseService.getDoc(partnerDocRef);
+                        if (partnerDocSnap && partnerDocSnap.data) {
+                            const data = partnerDocSnap.data;
                             setShoutoutText(data.shoutout || '');
                         }
                     } catch (error) {
@@ -204,13 +210,13 @@ export default function ChatScreen({ route }) {
     useEffect(() => {
         if (!chatId) return;
 
-        const chatDocRef = doc(db, 'chats', chatId);
-        const unsubscribe = onSnapshot(chatDocRef, (docSnap) => {
-            if (docSnap.exists()) {
+        const chatDocRef = DatabaseService.doc('chats', chatId);
+        const unsubscribe = DatabaseService.onSnapshot(chatDocRef, (docSnap) => {
+            if (docSnap.exists() && docSnap.data() && docSnap.data().messages) {
                 const data = docSnap.data();
                 const formattedMessages = data.messages.map(msg => ({
                     ...msg,
-                    createdAt: msg.createdAt.toDate(),
+                    createdAt: msg.createdAt instanceof Date ? msg.createdAt : new Date(msg.createdAt),
                 }));
                 setMessages(formattedMessages);
 
@@ -233,8 +239,8 @@ export default function ChatScreen({ route }) {
         if (!partnerId) return;
         setSending(true);
         try {
-            const partnerDocRef = doc(db, "users", partnerId);
-            await updateDoc(partnerDocRef, { shoutout: shoutoutText });
+            const partnerDocRef = DatabaseService.doc("users", partnerId);
+            await DatabaseService.updateDoc(partnerDocRef, { shoutout: shoutoutText });
             alert('发送成功！');
         } catch (error) {
             console.error("更新主页文字失败: ", error);

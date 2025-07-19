@@ -13,15 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { db } from '../firebaseConfig';
-import { 
-    doc, 
-    onSnapshot, 
-    updateDoc, 
-    arrayRemove,
-    getDoc,
-    setDoc
-} from 'firebase/firestore';
+import DatabaseService from '../services/DatabaseService';
 
 export default function TimesToDoScreen({ route }) {
     const { userId } = route.params;
@@ -37,8 +29,8 @@ export default function TimesToDoScreen({ route }) {
 
     // 监听数据变化
     useEffect(() => {
-        const timesDocRef = doc(db, 'timesToDo', timesDocId);
-        const unsubscribe = onSnapshot(timesDocRef, (docSnap) => {
+        const timesDocRef = DatabaseService.doc('timesToDo', timesDocId);
+        const unsubscribe = DatabaseService.onSnapshot(timesDocRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 setTimes(data.items || []);
@@ -68,17 +60,17 @@ export default function TimesToDoScreen({ route }) {
                 createdBy: userId
             };
 
-            const timesDocRef = doc(db, 'timesToDo', timesDocId);
+            const timesDocRef = DatabaseService.doc('timesToDo', timesDocId);
             
-            const docSnap = await getDoc(timesDocRef);
+            const docSnap = await DatabaseService.getDoc(timesDocRef);
             
             if (docSnap.exists()) {
                 const currentItems = docSnap.data().items || [];
-                await updateDoc(timesDocRef, {
+                await DatabaseService.updateDoc(timesDocRef, {
                     items: [...currentItems, newItem]
                 });
             } else {
-                await setDoc(timesDocRef, {
+                await DatabaseService.setDoc(timesDocRef, {
                     items: [newItem]
                 });
             }
@@ -96,8 +88,8 @@ export default function TimesToDoScreen({ route }) {
     // 增加次数
     const incrementCount = async (item) => {
         try {
-            const timesDocRef = doc(db, 'timesToDo', timesDocId);
-            const docSnap = await getDoc(timesDocRef);
+            const timesDocRef = DatabaseService.doc('timesToDo', timesDocId);
+            const docSnap = await DatabaseService.getDoc(timesDocRef);
             
             if (docSnap.exists()) {
                 const currentItems = docSnap.data().items || [];
@@ -107,7 +99,7 @@ export default function TimesToDoScreen({ route }) {
                         : time
                 );
                 
-                await updateDoc(timesDocRef, { items: updatedItems });
+                await DatabaseService.updateDoc(timesDocRef, { items: updatedItems });
             }
         } catch (error) {
             console.error('更新次数失败:', error);
@@ -120,8 +112,8 @@ export default function TimesToDoScreen({ route }) {
         if (item.count <= 0) return;
         
         try {
-            const timesDocRef = doc(db, 'timesToDo', timesDocId);
-            const docSnap = await getDoc(timesDocRef);
+            const timesDocRef = DatabaseService.doc('timesToDo', timesDocId);
+            const docSnap = await DatabaseService.getDoc(timesDocRef);
             
             if (docSnap.exists()) {
                 const currentItems = docSnap.data().items || [];
@@ -131,7 +123,7 @@ export default function TimesToDoScreen({ route }) {
                         : time
                 );
                 
-                await updateDoc(timesDocRef, { items: updatedItems });
+                await DatabaseService.updateDoc(timesDocRef, { items: updatedItems });
             }
         } catch (error) {
             console.error('更新次数失败:', error);
@@ -151,10 +143,14 @@ export default function TimesToDoScreen({ route }) {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            const timesDocRef = doc(db, 'timesToDo', timesDocId);
-                            await updateDoc(timesDocRef, {
-                                items: arrayRemove(item)
-                            });
+                            const timesDocRef = DatabaseService.doc('timesToDo', timesDocId);
+                            const docSnap = await DatabaseService.getDoc(timesDocRef);
+                            
+                            if (docSnap.exists()) {
+                                const currentItems = docSnap.data().items || [];
+                                const updatedItems = currentItems.filter(time => time.id !== item.id);
+                                await DatabaseService.updateDoc(timesDocRef, { items: updatedItems });
+                            }
                         } catch (error) {
                             console.error('删除失败:', error);
                             Alert.alert('错误', '删除失败，请重试');

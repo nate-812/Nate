@@ -13,17 +13,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { 
-    doc, 
-    onSnapshot, 
-    updateDoc, 
-    arrayUnion, 
-    arrayRemove,
-    getDoc,
-    setDoc
-} from 'firebase/firestore';
-import { db } from '../firebaseConfig';
-import { auth } from '../firebaseConfig';
+import DatabaseService from '../services/DatabaseService';
+// import { db } from '../firebaseConfig';
+// import { auth } from '../firebaseConfig';
 
 export default function ThingsToDoScreen({ route }) {
     const { userId } = route.params;
@@ -38,8 +30,8 @@ export default function ThingsToDoScreen({ route }) {
 
     // 监听数据变化
     useEffect(() => {
-        const thingsDocRef = doc(db, 'thingsToDo', thingsDocId);
-        const unsubscribe = onSnapshot(thingsDocRef, (docSnap) => {
+        const thingsDocRef = DatabaseService.doc('thingsToDo', thingsDocId);
+        const unsubscribe = DatabaseService.onSnapshot(thingsDocRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 setThings(data.items || []);
@@ -69,20 +61,17 @@ export default function ThingsToDoScreen({ route }) {
                 createdBy: userId
             };
 
-            const thingsDocRef = doc(db, 'thingsToDo', thingsDocId);
+            const thingsDocRef = DatabaseService.doc('thingsToDo', thingsDocId);
             
-            // 检查文档是否存在
-            const docSnap = await getDoc(thingsDocRef);
+            const docSnap = await DatabaseService.getDoc(thingsDocRef);
             
             if (docSnap.exists()) {
-                // 文档存在，添加到现有数组
                 const currentItems = docSnap.data().items || [];
-                await updateDoc(thingsDocRef, {
+                await DatabaseService.updateDoc(thingsDocRef, {
                     items: [...currentItems, newItem]
                 });
             } else {
-                // 文档不存在，创建新文档
-                await setDoc(thingsDocRef, {
+                await DatabaseService.setDoc(thingsDocRef, {
                     items: [newItem]
                 });
             }
@@ -100,8 +89,8 @@ export default function ThingsToDoScreen({ route }) {
     // 切换完成状态
     const toggleComplete = async (item) => {
         try {
-            const thingsDocRef = doc(db, 'thingsToDo', thingsDocId);
-            const docSnap = await getDoc(thingsDocRef);
+            const thingsDocRef = DatabaseService.doc('thingsToDo', thingsDocId);
+            const docSnap = await DatabaseService.getDoc(thingsDocRef);
             
             if (docSnap.exists()) {
                 const currentItems = docSnap.data().items || [];
@@ -111,7 +100,7 @@ export default function ThingsToDoScreen({ route }) {
                         : thing
                 );
                 
-                await updateDoc(thingsDocRef, { items: updatedItems });
+                await DatabaseService.updateDoc(thingsDocRef, { items: updatedItems });
             }
         } catch (error) {
             console.error('更新状态失败:', error);
@@ -131,10 +120,14 @@ export default function ThingsToDoScreen({ route }) {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            const thingsDocRef = doc(db, 'thingsToDo', thingsDocId);
-                            await updateDoc(thingsDocRef, {
-                                items: arrayRemove(item)
-                            });
+                            const thingsDocRef = DatabaseService.doc('thingsToDo', thingsDocId);
+                            const docSnap = await DatabaseService.getDoc(thingsDocRef);
+                            
+                            if (docSnap.exists()) {
+                                const currentItems = docSnap.data().items || [];
+                                const updatedItems = currentItems.filter(thing => thing.id !== item.id);
+                                await DatabaseService.updateDoc(thingsDocRef, { items: updatedItems });
+                            }
                         } catch (error) {
                             console.error('删除失败:', error);
                             Alert.alert('错误', '删除失败，请重试');

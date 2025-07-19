@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, FlatList, Pressable, Dimensions, Platform, Touc
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { db } from '../firebaseConfig';
-import { doc, onSnapshot } from "firebase/firestore";
+import DatabaseService from '../services/DatabaseService';
+// import { doc, onSnapshot } from "firebase/firestore"; // Removed
 
 const widgets = [
   { id: 'chat', title: '悄悄话', icon: 'chatbubble-ellipses-outline', colors: ['#FF9A9E', '#FECFEF'], screen: 'Chat' },
@@ -119,15 +119,15 @@ export default function HomeScreen({ navigation, route }) {
 
   useEffect(() => {
     if (userId) {
-      const userDocRef = doc(db, "users", userId);
-      const unsubscribe = onSnapshot(userDocRef, (doc) => {
+      const userDocRef = DatabaseService.doc("users", userId);
+      const unsubscribe = DatabaseService.onSnapshot(userDocRef, (doc) => {
         if (doc.exists() && doc.data().shoutout) {
           setShoutout(doc.data().shoutout);
         } else {
           setShoutout('今天也是想你的一天...');
         }
       });
-      return () => unsubscribe(); // Cleanup listener on unmount
+      return () => unsubscribe();
     }
   }, [userId]);
 
