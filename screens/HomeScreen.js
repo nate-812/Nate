@@ -10,7 +10,7 @@ const widgets = [
   { id: 'chat', title: '悄悄话', icon: 'chatbubble-ellipses-outline', colors: ['#FF9A9E', '#FECFEF'], screen: 'Chat' },
   { id: 'calendar', title: '纪念日', icon: 'calendar-outline', colors: ['#A8EDEA', '#FED6E3'], screen: 'Calendar' },
   { id: 'todos', title: '我们的约定', icon: 'checkbox-outline', colors: ['#FFECD2', '#FCB69F'], screen: 'ThingsToDoMenu' },
-  { id: 'settings', title: '设置', icon: 'settings-outline', colors: ['#C7A2FF', '#E6E6FA'], screen: 'Settings' },
+  { id: 'mood', title: '心情日历', icon: 'color-palette-outline', colors: ['#C7A2FF', '#E6E6FA'], screen: 'MoodCalendar' },
 ];
 
 const numColumns = 2;

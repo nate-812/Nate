@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { db } from '../firebaseConfig';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { db, auth } from '../firebaseConfig';
 import { doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
 const calculateAge = (birthday) => {
@@ -16,7 +18,7 @@ const calculateAge = (birthday) => {
     return age;
 };
 
-export default function ProfileScreen({ route }) {
+export default function ProfileScreen({ route, navigation }) {
     const { userId } = route.params;
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -44,6 +46,29 @@ export default function ProfileScreen({ route }) {
         fetchUserData();
     }, [userId]);
 
+    const handleLogout = async () => {
+        Alert.alert(
+            '确认退出',
+            '确定要退出登录吗？',
+            [
+                { text: '取消', style: 'cancel' },
+                { 
+                    text: '退出', 
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await signOut(auth);
+                            await AsyncStorage.removeItem('userToken');
+                        } catch (error) {
+                            console.error('退出登录失败:', error);
+                            Alert.alert('错误', '退出登录失败，请重试');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     if (loading) {
         return <ActivityIndicator size="large" style={styles.loader} />;
     }
@@ -69,6 +94,15 @@ export default function ProfileScreen({ route }) {
                     <Ionicons name="calendar-outline" size={24} color="#666" />
                     <Text style={styles.infoText}>{userData.birthday || 'N/A'}</Text>
                 </View>
+
+                <View style={styles.divider} />
+
+                <Text style={styles.settingsTitle}>设置</Text>
+                
+                <TouchableOpacity style={styles.settingItem} onPress={handleLogout}>
+                    <Ionicons name="log-out-outline" size={24} color="#e74c3c" />
+                    <Text style={styles.settingText}>退出登录</Text>
+                </TouchableOpacity>
             </View>
         </View>
     );
@@ -117,5 +151,29 @@ const styles = StyleSheet.create({
         fontSize: 18,
         marginLeft: 15,
         color: '#333',
+    },
+    divider: {
+        width: '100%',
+        height: 1,
+        backgroundColor: '#e0e0e0',
+        marginVertical: 20,
+    },
+    settingsTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        alignSelf: 'flex-start',
+        marginBottom: 15,
+        color: '#333',
+    },
+    settingItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        paddingVertical: 10,
+    },
+    settingText: {
+        fontSize: 18,
+        marginLeft: 15,
+        color: '#e74c3c',
     },
 }); 

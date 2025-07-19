@@ -18,6 +18,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import ThingsToDoMenuScreen from './screens/ThingsToDoMenuScreen';
 import ThingsToDoScreen from './screens/ThingsToDoScreen';
 import TimesToDoScreen from './screens/TimesToDoScreen';
+import MoodCalendarScreen from './screens/MoodCalendarScreen';
 
 const AppStack = createStackNavigator();
 
@@ -35,6 +36,7 @@ function AppNavigator({ onLogout, userId }) {
       <AppStack.Screen name="Settings" options={{ title: '设置' }}>
         {(props) => <SettingsScreen {...props} onLogout={onLogout} />}
       </AppStack.Screen>
+      <AppStack.Screen name="MoodCalendar" component={MoodCalendarScreen} options={{ title: '心情日历' }} initialParams={{ userId }}/>
     </AppStack.Navigator>
   );
 }
